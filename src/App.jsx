@@ -742,76 +742,80 @@ export default function App() {
         </div>
 
         {/* Tabela */}
-        <div className="bg-white rounded-2xl shadow-soft border border-brand-100 mt-6">
-          <div className="px-5 pt-4 pb-2 border-b border-brand-100">
-            <div className="flex items-center justify-between">
-              <div className="font-medium text-brand-800">Registros ({filtered.length})</div>
-              <div className="text-xs text-brand-700/70">Use o painel lateral para agir rápido.</div>
-            </div>
-          </div>
-          <div className="px-5 py-4">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                    <tr className="text-left text-brand-800 border-b">
-                      <th className="py-2 pr-3">Status</th>
-                      <th className="py-2 pr-3">Tipo</th>
-                      <th className="py-2 pr-3">Órgão</th>
-                      <th className="py-2 pr-3">Número</th>
-                      <th className="py-2 pr-3">Empresa</th>
-                      <th className="py-2 pr-3">Município/UF</th>
-                      <th className="py-2 pr-3">Emissão</th>
-                      <th className="py-2 pr-3">Vencimento</th>
-                      <th className="py-2 pr-3">Dias</th>
-                      <th className="py-2 pr-3">Responsável</th>
-                      <th className="py-2 pr-3">Situação</th>
-                      <th className="py-2 pr-3 w-[220px]">Obs.</th>
-                      <th className="py-2 pr-3">Ações</th>
-                    </tr>
-                  </thead>
-                <tbody>
-                  {filtered.map(it=>(
-                    <tr key={it.id} className="border-b last:border-0 hover:bg-brand-100/60">
-                      <td className="py-2 pr-3"><Badge className={statusColor(it.status)}>{it.status}</Badge></td>
-                      <td className="py-2 pr-3">{it.tipo}</td>
-                      <td className="py-2 pr-3">{it.orgao}</td>
-                      <td className="py-2 pr-3">{it.numero}</td>
-                      <td className="py-2 pr-3">{it.empresa}</td>
-                      <td className="py-2 pr-3">{it.municipio}/{it.uf}</td>
-                      <td className="py-2 pr-3">{formatBR(it.emissao)}</td>
-                      <td className="py-2 pr-3 font-medium">{formatBR(it.vencimento)}</td>
-                      <td className="py-2 pr-3">{isNaN(it.dias)?'-':it.dias}</td>
-                      <td className="py-2 pr-3">{it.responsavel}</td>
-                      <td className="py-2 pr-3"><Badge className={situacaoColor(it.situacao)}>{it.situacao}</Badge></td>
-                      <td className="py-2 pr-3 max-w-[220px] truncate" title={it.observacao || ""}>  {it.observacao || "—"}</td>
-                      <td className="py-2 pr-3">
-                          <div className="flex items-center gap-2">
-                            <Button onClick={()=>handleEdit(it)} title="Editar">
-                              <Edit3 size={16}/>Editar
-                            </Button>
-                            <Button onClick={()=>handleDelete(it.id)} className="border-red-200 text-red-700 hover:bg-red-50" title="Excluir">
-                              <Trash2 size={16}/>Excluir
-                            </Button>
-                          </div>
-                        </td>
-                      <td className="py-2 pr-3">{it.protocolo || "-"}</td>
-                      <td className="py-2 pr-3">{it.renovacao_prazo ? formatBR(it.renovacao_prazo) : "-"}</td>
-                      <td className="py-2 pr-3 truncate max-w-[240px]">{it.observacao || "-"}</td>
-                      <td className="py-2 pr-3">
-                        <div className="flex items-center gap-2">
-                          <Button onClick={()=>handleEdit(it)} title="Editar"><Edit3 size={16}/>Editar</Button>
-                          <Button onClick={()=>handleDelete(it.id)} className="border-red-200 text-red-700 hover:bg-red-50" title="Excluir"><Trash2 size={16}/>Excluir</Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filtered.length===0 && <tr><td colSpan={12} className="py-6 text-center text-brand-700/70">Nenhum registro com os filtros atuais.</td></tr>}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-[1100px] table-fixed text-sm">
+              <colgroup>
+                <col className="w-[140px]" />   {/* Status */}
+                <col className="w-[200px]" />   {/* Tipo */}
+                <col className="w-[220px]" />   {/* Órgão */}
+                <col className="w-[140px]" />   {/* Número */}
+                <col className="w-[220px]" />   {/* Empresa */}
+                <col className="w-[180px]" />   {/* Município/UF */}
+                <col className="w-[140px]" />   {/* Vencimento */}
+                <col className="w-[90px]"  />   {/* Dias */}
+                <col className="w-[140px]" />   {/* Situação */}
+                <col className="w-[260px]" />   {/* Obs. (pode crescer um pouco) */}
+                <col className="w-[160px]" />   {/* Ações */}
+              </colgroup>
 
+              <thead>
+                <tr className="text-left text-brand-800 border-b">
+                  <th className="py-2 pr-3">Status</th>
+                  <th className="py-2 pr-3">Tipo</th>
+                  <th className="py-2 pr-3">Órgão</th>
+                  <th className="py-2 pr-3">Número</th>
+                  <th className="py-2 pr-3">Empresa</th>
+                  <th className="py-2 pr-3">Município/UF</th>
+                  <th className="py-2 pr-3">Vencimento</th>
+                  <th className="py-2 pr-3">Dias</th>
+                  <th className="py-2 pr-3">Situação</th>
+                  <th className="py-2 pr-3">Obs.</th>
+                  <th className="py-2 pr-3">Ações</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filtered.map(it => (
+                  <tr key={it.id} className="border-b last:border-0 hover:bg-brand-100/60">
+                    <td className="py-2 pr-3"><Badge className={statusColor(it.status)}>{it.status}</Badge></td>
+                    <td className="py-2 pr-3 truncate">{it.tipo}</td>
+                    <td className="py-2 pr-3 truncate">{it.orgao}</td>
+                    <td className="py-2 pr-3 truncate">{it.numero}</td>
+                    <td className="py-2 pr-3 truncate">{it.empresa}</td>
+                    <td className="py-2 pr-3 whitespace-nowrap truncate">{it.municipio}/{it.uf}</td>
+                    <td className="py-2 pr-3 font-medium">{formatBR(it.vencimento)}</td>
+                    <td className="py-2 pr-3">{isNaN(it.dias) ? '-' : it.dias}</td>
+                    <td className="py-2 pr-3">
+                      <Badge className={situacaoColor(it.situacao)}>{it.situacao}</Badge>
+                    </td>
+
+                    {/* Obs. geral do registro (se existir) */}
+                    <td className="py-2 pr-3 truncate">{it.obs || ''}</td>
+
+                    {/* Ações (só Editar/Excluir) */}
+                    <td className="py-2 pr-3">
+                      <div className="flex items-center gap-2">
+                        <Button onClick={() => handleEdit(it)} title="Editar">
+                          <Edit3 size={16}/> Editar
+                        </Button>
+                        <Button onClick={() => handleDelete(it.id)} className="border-red-200 text-red-700 hover:bg-red-50" title="Excluir">
+                          <Trash2 size={16}/> Excluir
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={11} className="py-6 text-center text-brand-700/70">
+                      Nenhum registro com os filtros atuais.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          
         <footer className="text-xs text-brand-700/70 mt-6">
           <p>Dados salvos no navegador (localStorage). Para uso em equipe, publicar com backend (Supabase/Firebase/Postgres) e trocar persistência.</p>
         </footer>
