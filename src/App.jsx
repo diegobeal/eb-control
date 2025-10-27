@@ -1,7 +1,45 @@
+// --- Imports principais ---
 import React, { useEffect, useMemo, useState } from "react";
-import { PieChart, Pie, Cell, Tooltip as ReTooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
+
+// --- Conexão com Supabase ---
+import { supabase } from "./supabaseClient";
+import {
+  listLicencas,
+  insertLicenca,
+  updateLicenca,
+  deleteLicenca,
+  subscribeLicencas,
+} from "./db";
+
+// --- Componentes e bibliotecas auxiliares ---
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip as ReTooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
+} from "recharts";
 import { motion } from "framer-motion";
-import { Download, Plus, Upload, Trash2, Edit3, Search, AlertTriangle, Calendar, Info, ChevronLeft, ChevronRight, FileText, FileUp } from "lucide-react";
+import {
+  Download,
+  Plus,
+  Upload,
+  Trash2,
+  Edit3,
+  Search,
+  AlertTriangle,
+  Calendar,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  FileUp,
+} from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -66,17 +104,6 @@ const seed = [
   { id: crypto.randomUUID(), tipo:"Licença Sanitária", orgao:"Vigilância Sanitária", numero:"LS-3321", empresa:"Monka Fit Food", municipio:"Cascavel", uf:"PR", emissao:"2024-11-10", vencimento:"2025-11-10", responsavel:"Luísa", situacao:SITUACAO.NORMAL }
 ];
 
-/* ---------- Hooks util ---------- */
-function useLocalStorageState(key, initial) {
-  const [state, setState] = useState(() => {
-    const raw = localStorage.getItem(key);
-    if (raw) { try { return JSON.parse(raw); } catch {} }
-    return typeof initial === "function" ? initial() : initial;
-  });
-  useEffect(() => { localStorage.setItem(key, JSON.stringify(state)); }, [key, state]);
-  return [state, setState];
-}
-
 /* ---------- CSV helpers ---------- */
 function csvEscape(v){ if(v==null) return ""; const s=String(v); return /[",\n;]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; }
 function toCSV(list){
@@ -128,12 +155,18 @@ function icsForItem(item){
 }
 
 /* ---------- Modal ---------- */
-function Modal({ open, onClose, title, children, footer }){
-  if(!open) return null;
+// ✅ Deixe o Modal assim (sem export)
+function Modal({ open, onClose, title, children, footer }) {
+  if (!open) return null; // 👈 só renderiza quando open === true
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose}/>
-      <div className="relative bg-white rounded-2xl shadow-soft border border-brand-100 w-[min(980px,95vw)] max-h-[85vh] overflow-auto p-4">
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-white rounded-2xl shadow-soft border border-brand-100 w-[min(980px,90vw)] p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="text-lg font-medium text-brand-800 mb-2">{title}</div>
         <div>{children}</div>
         <div className="mt-4 flex justify-end gap-2">{footer}</div>
@@ -142,9 +175,11 @@ function Modal({ open, onClose, title, children, footer }){
   );
 }
 
-/* ---------- App ---------- */
-export default function App(){
-  const [items, setItems] = useLocalStorageState("eb-control-v3-1-1", seed);
+// ⚠️ Agora apenas UMA função App exportada no arquivo
+export default function App() {
+
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [editingId, setEditingId] = useState(null);
   const [query, setQuery] = useState("");
@@ -165,8 +200,49 @@ export default function App(){
     return matchQ&&matchS&&matchT&&matchE;
   }),[enriched,query,statusFilter,tipoFilter,empresaFilter]);
 
+  useEffect(() => {
+    let mounted = true;
+
+    // 1) carga inicial
+    (async () => {
+      try {
+        const rows = await listLicencas();
+        if (mounted) setItems(rows);
+      } catch (err) {
+        console.error("Falha ao listar licenças:", err.message);
+        alert("Não foi possível carregar agora.");
+      }
+    })();
+
+    // 2) inscrição realtime
+    const unsubscribe = subscribeLicencas(
+      // upsert (INSERT/UPDATE)
+      (novo) => {
+        setItems((prev) => {
+          const i = prev.findIndex((r) => r.id === novo.id);
+          if (i >= 0) {
+            const clone = [...prev];
+            clone[i] = novo;
+            return clone;
+          }
+          return [novo, ...prev]; // inserts entram no topo
+        });
+      },
+      // delete
+      (old) => {
+        setItems((prev) => prev.filter((r) => r.id !== old.id));
+      }
+    );
+
+    // cleanup
+    return () => {
+      mounted = false;
+      unsubscribe?.();
+    };
+  }, []);
+
   // Painel
-  const [sidebarOpen, setSidebarOpen] = useLocalStorageState("eb-sidebar-open", true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarList = useMemo(()=>{
     const arr=[...enriched].filter(it=>it.vencimento).sort((a,b)=>(a.dias??1e9)-(b.dias??1e9));
     return arr.slice(0,8);
@@ -199,42 +275,101 @@ export default function App(){
   const [pdfSuggestOpen, setPdfSuggestOpen] = useState(false);
   const [pdfSuggest, setPdfSuggest] = useState(DEFAULT_FORM);
 
-  function resetForm(){ setForm({...DEFAULT_FORM, emissao:todayISO(), vencimento:""}); setEditingId(null); }
-  function addOrUpdate(e){
-    e.preventDefault();
-    if(!form.tipo||!form.orgao||!form.empresa||!form.municipio||!form.uf||!form.vencimento||!form.responsavel){ alert("Preencha os campos obrigatórios (*)."); return; }
-    const payload={...form, emissao:toISO(form.emissao), vencimento:toISO(form.vencimento)};
-    if(editingId) setItems(prev=>prev.map(it=>it.id===editingId?{...it,...payload}:it));
-    else setItems(prev=>[{id:crypto.randomUUID(), ...payload}, ...prev]);
-    resetForm();
+    function resetForm() {
+    setForm({ ...DEFAULT_FORM, emissao: todayISO(), vencimento: "" });
+    setEditingId(null);
   }
-  function handleEdit(it){ setEditingId(it.id); setForm({...it}); window.scrollTo({top:0,behavior:"smooth"}); }
-  function handleDelete(id){ if(!confirm("Remover este registro?")) return; setItems(prev=>prev.filter(it=>it.id!==id)); }
 
+  async function addOrUpdate(e) {
+    e.preventDefault();
+
+    // Monte o payload conforme seus campos do formulário
+    const payload = {
+      tipo: form.tipo,
+      orgao: form.orgao,
+      numero: form.numero || "",
+      empresa: form.empresa,
+      municipio: form.municipio,
+      uf: form.uf,
+      emissao: form.emissao,       // YYYY-MM-DD
+      vencimento: form.vencimento, // YYYY-MM-DD
+      responsavel: form.responsavel,
+      situacao: form.situacao,
+    };
+
+    try {
+      if (editingId) {
+        await updateLicenca(editingId, payload);
+      } else {
+        await insertLicenca(payload);
+      }
+      // NÃO precisa mexer em setItems aqui — o realtime atualiza pra todos
+      resetForm();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      console.error("Erro ao salvar:", err.message);
+      alert("Não foi possível salvar. Tente novamente.");
+    }
+  }
+
+  function handleEdit(item) {
+    setEditingId(item.id);
+    setForm({ ...item }); // garanta que os nomes batem com os campos do form
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+    async function handleDelete(id) {
+    if (!confirm("Remover este registro?")) return;
+    try {
+      await deleteLicenca(id);
+      // Realtime remove da lista (não precisa mexer no estado)
+    } catch (err) {
+      console.error("Erro ao excluir:", err.message);
+      alert("Não foi possível excluir agora.");
+    }
+  }
   function handleExportCSV(){ download("eb-control.csv", toCSV(items), "text/csv"); }
   function handleDownloadTemplate(){ download("modelo-eb-control.csv", csvTemplate(), "text/csv"); }
 
   async function handleImportCSV(e){
-    const file=e.target.files?.[0]; if(!file) return;
-    const text=await file.text(); const parsed=fromCSV(text);
-    if(!parsed.length){ alert("CSV vazio ou formato inválido."); return; }
-    setPreviewRows(parsed.map(p=>({...p, _tmpId:crypto.randomUUID()})));
-    setSelectedRows(Object.fromEntries(parsed.map(p=>[p.id||p._tmpId, true])));
-    setPreviewOpen(true); e.target.value="";
+  const file = e.target.files?.[0]; if (!file) return;
+  const text = await file.text();
+  const parsed = fromCSV(text);        // sua função que transforma texto em objetos
+  if (!parsed.length){ alert("CSV vazio ou inválido."); return; }
+  setPreviewRows(parsed.map(r => ({ ...r, _tmpId: crypto.randomUUID() })));
+  setSelectedRows(Object.fromEntries(parsed.map(r => [r.id || r._tmpId, true])));
+  setPreviewOpen(true);                 // <<< abre modal
+  e.target.value = "";
   }
-  function confirmImport(){
-    const toAdd = previewRows.filter(r=>selectedRows[r.id||r._tmpId]);
-    if(!toAdd.length){ setPreviewOpen(false); return; }
-    setItems(prev=>[
-      ...toAdd.map(r=>({
-        id:r.id||crypto.randomUUID(), tipo:r.tipo, orgao:r.orgao, numero:r.numero, empresa:r.empresa,
-        municipio:r.municipio, uf:r.uf, emissao:toISO(r.emissao), vencimento:toISO(r.vencimento),
-        responsavel:r.responsavel, situacao:r.situacao||SITUACAO.NORMAL
-      })), ...prev
-    ]);
-    setPreviewOpen(false); setPreviewRows([]); setSelectedRows({});
-  }
+  async function confirmImport() {
+  const toAdd = previewRows.filter(r => selectedRows[r.id || r._tmpId]);
+  if (!toAdd.length) { setPreviewOpen(false); return; }
 
+  try {
+    await Promise.all(
+      toAdd.map(r =>
+        insertLicenca({
+          tipo: r.tipo,
+          orgao: r.orgao,
+          numero: r.numero || "",
+          empresa: r.empresa,
+          municipio: r.municipio,
+          uf: r.uf,
+          emissao: toISO(r.emissao),
+          vencimento: toISO(r.vencimento),
+          responsavel: r.responsavel,
+          situacao: r.situacao || SITUACAO.NORMAL,
+        })
+      )
+    );
+    // Não precisa dar setItems: o realtime cuida
+    setPreviewOpen(false);
+    setPreviewRows([]);
+    setSelectedRows({});
+  } catch (err) {
+    console.error("Erro ao importar CSV:", err);
+    alert("Falha ao importar CSV.");
+  }
+}
   // Relatório PDF (linhas filtradas)
   function exportPDF(){
     const doc = new jsPDF({ orientation:"landscape" });
