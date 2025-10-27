@@ -531,7 +531,6 @@ export default function App() {
                   <div className="text-xs mt-1"><span className="font-semibold text-brand-800">Vence:</span> {formatBR(it.vencimento)} ({isNaN(it.dias)?'-':(it.dias>=0?`em ${it.dias}d`:`${Math.abs(it.dias)}d atrasado`)})</div>
                   <div className="text-xs mt-1"><span className="font-semibold">Situação:</span> <Badge className={situacaoColor(it.situacao)}>{it.situacao}</Badge></div>
                   <div className="mt-2 flex items-center gap-2">
-                    <Button onClick={()=>{ const ics=icsForItem(it); download(`${it.tipo}-${it.empresa}.ics`, ics, "text/calendar"); }}>ICS</Button>
                     <Button onClick={()=>{ window.scrollTo({top:0,behavior:"smooth"}); setEditingId(it.id); setForm({...it}); }}><Edit3 size={16}/> Editar</Button>
                   </div>
                 </div>
@@ -554,8 +553,41 @@ export default function App() {
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-medium text-brand-800">{editingId?"Editar Registro":"Novo Registro"}</h2>
                 <div className="flex items-center gap-2">
-                  <Button onClick={()=>{ setForm({...DEFAULT_FORM, emissao:todayISO(), vencimento:""}); setEditingId(null); }}>Limpar</Button>
-                  <Primary form="lic-form" type="submit"><Plus size={16}/> {editingId?"Salvar":"Cadastrar"}</Primary>
+                  {/* Botão ICS só aparece ao editar */}
+                  {editingId && (
+                    <Button
+                      onClick={() => {
+                        // Gera o .ics com os dados do formulário atual
+                        const ics = icsForItem({
+                          ...form,
+                          // garantias básicas:
+                          empresa: form.empresa || "",
+                          orgao: form.orgao || "",
+                          numero: form.numero || "",
+                          responsavel: form.responsavel || "",
+                          situacao: form.situacao || "Normal",
+                        });
+                        download(`${form.tipo}-${form.empresa || "empresa"}.ics`, ics, "text/calendar");
+                      }}
+                      className="text-brand-800 border-brand-200"
+                      title="Gerar evento (ICS)"
+                    >
+                      <Calendar size={16} /> ICS
+                    </Button>
+                  )}
+
+                  <Button
+                    onClick={() => {
+                      setForm({ ...DEFAULT_FORM, emissao: todayISO(), vencimento: "" });
+                      setEditingId(null);
+                    }}
+                  >
+                    Limpar
+                  </Button>
+
+                  <Primary form="lic-form" type="submit">
+                    <Plus size={16} /> {editingId ? "Salvar" : "Cadastrar"}
+                  </Primary>
                 </div>
               </div>
             </div>
@@ -721,24 +753,22 @@ export default function App() {
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
-                  <tr className="text-left text-brand-800 border-b">
-                    <th className="py-2 pr-3">Status</th>
-                    <th className="py-2 pr-3">Tipo</th>
-                    <th className="py-2 pr-3">Órgão</th>
-                    <th className="py-2 pr-3">Número</th>
-                    <th className="py-2 pr-3">Empresa</th>
-                    <th className="py-2 pr-3">Município/UF</th>
-                    <th className="py-2 pr-3">Emissão</th>
-                    <th className="py-2 pr-3">Vencimento</th>
-                    <th className="py-2 pr-3">Dias</th>
-                    <th className="py-2 pr-3">Responsável</th>
-                    <th className="py-2 pr-3">Situação</th>
-                    <th className="py-2 pr-3">Ações</th>
-                    <th className="py-2 pr-3">Protocolo</th>
-                    <th className="py-2 pr-3">Novo prazo</th>
-                    <th className="py-2 pr-3">Obs.</th>
-                  </tr>
-                </thead>
+                    <tr className="text-left text-brand-800 border-b">
+                      <th className="py-2 pr-3">Status</th>
+                      <th className="py-2 pr-3">Tipo</th>
+                      <th className="py-2 pr-3">Órgão</th>
+                      <th className="py-2 pr-3">Número</th>
+                      <th className="py-2 pr-3">Empresa</th>
+                      <th className="py-2 pr-3">Município/UF</th>
+                      <th className="py-2 pr-3">Emissão</th>
+                      <th className="py-2 pr-3">Vencimento</th>
+                      <th className="py-2 pr-3">Dias</th>
+                      <th className="py-2 pr-3">Responsável</th>
+                      <th className="py-2 pr-3">Situação</th>
+                      <th className="py-2 pr-3 w-[220px]">Obs.</th>
+                      <th className="py-2 pr-3">Ações</th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {filtered.map(it=>(
                     <tr key={it.id} className="border-b last:border-0 hover:bg-brand-100/60">
@@ -753,13 +783,23 @@ export default function App() {
                       <td className="py-2 pr-3">{isNaN(it.dias)?'-':it.dias}</td>
                       <td className="py-2 pr-3">{it.responsavel}</td>
                       <td className="py-2 pr-3"><Badge className={situacaoColor(it.situacao)}>{it.situacao}</Badge></td>
+                      <td className="py-2 pr-3 max-w-[220px] truncate" title={it.observacao || ""}>  {it.observacao || "—"}</td>
+                      <td className="py-2 pr-3">
+                          <div className="flex items-center gap-2">
+                            <Button onClick={()=>handleEdit(it)} title="Editar">
+                              <Edit3 size={16}/>Editar
+                            </Button>
+                            <Button onClick={()=>handleDelete(it.id)} className="border-red-200 text-red-700 hover:bg-red-50" title="Excluir">
+                              <Trash2 size={16}/>Excluir
+                            </Button>
+                          </div>
+                        </td>
                       <td className="py-2 pr-3">{it.protocolo || "-"}</td>
                       <td className="py-2 pr-3">{it.renovacao_prazo ? formatBR(it.renovacao_prazo) : "-"}</td>
                       <td className="py-2 pr-3 truncate max-w-[240px]">{it.observacao || "-"}</td>
                       <td className="py-2 pr-3">
                         <div className="flex items-center gap-2">
                           <Button onClick={()=>handleEdit(it)} title="Editar"><Edit3 size={16}/>Editar</Button>
-                          <Button onClick={()=>{ const ics=icsForItem(it); download(`${it.tipo}-${it.empresa}.ics`, ics, "text/calendar"); }} title="Gerar evento (ICS)"><Calendar size={16}/>ICS</Button>
                           <Button onClick={()=>handleDelete(it.id)} className="border-red-200 text-red-700 hover:bg-red-50" title="Excluir"><Trash2 size={16}/>Excluir</Button>
                         </div>
                       </td>
