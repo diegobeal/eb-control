@@ -97,7 +97,15 @@ const UF_LIST = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG
 const ORGAOS_SUG = ["Prefeitura Municipal","Vigilância Sanitária","Corpo de Bombeiros (AVCB)","Secretaria do Meio Ambiente","IAP/IMA/SEMA (Ambiental)","ANVISA","SEFAZ (Estadual)"];
 
 /* ---------- Defaults ---------- */
-const DEFAULT_FORM = { tipo:"Alvará de Funcionamento", orgao:"", numero:"", empresa:"", municipio:"", uf:"", emissao:todayISO(), vencimento:"", responsavel:"", situacao:SITUACAO.NORMAL };
+const DEFAULT_FORM = {
+  tipo:"Alvará de Funcionamento",
+  orgao:"", numero:"", empresa:"", municipio:"", uf:"",
+  emissao:todayISO(), vencimento:"",
+  responsavel:"", situacao:SITUACAO.NORMAL,
+  // novos:
+  protocolo:"", observacao:"", renovacao_prazo:""
+};
+
 const seed = [
   { id: crypto.randomUUID(), tipo:"Alvará de Funcionamento", orgao:"Prefeitura Municipal", numero:"AF-2025-001", empresa:"Loja Centro", municipio:"Cascavel", uf:"PR", emissao:"2025-01-15", vencimento:"2026-01-15", responsavel:"Mariana", situacao:SITUACAO.NORMAL },
   { id: crypto.randomUUID(), tipo:"AVCB (Bombeiros)", orgao:"Corpo de Bombeiros (AVCB)", numero:"AVCB-98765", empresa:"Cozinha Industrial", municipio:"Cascavel", uf:"PR", emissao:"2024-08-01", vencimento:"2025-12-10", responsavel:"Mateus", situacao:SITUACAO.RENOVACAO },
@@ -291,11 +299,15 @@ export default function App() {
       empresa: form.empresa,
       municipio: form.municipio,
       uf: form.uf,
-      emissao: form.emissao,       // YYYY-MM-DD
-      vencimento: form.vencimento, // YYYY-MM-DD
+      emissao: form.emissao,
+      vencimento: form.vencimento,
       responsavel: form.responsavel,
       situacao: form.situacao,
-    };
+      // novos:
+      protocolo: form.protocolo || null,
+      observacao: form.observacao || null,
+      renovacao_prazo: form.renovacao_prazo || null,
+      };
 
     try {
       if (editingId) {
@@ -597,6 +609,35 @@ export default function App() {
                     <option value={SITUACAO.NORMAL}>{SITUACAO.NORMAL}</option>
                     <option value={SITUACAO.RENOVACAO}>{SITUACAO.RENOVACAO}</option>
                   </Select>
+                  {form.situacao === SITUACAO.RENOVACAO && (
+  <>
+    <div className="md:col-span-2">
+      <Label>Protocolo</Label>
+      <Input
+        value={form.protocolo || ""}
+        onChange={e => setForm(f => ({ ...f, protocolo: e.target.value }))}
+        placeholder="Ex.: 2025/000123-45"
+      />
+    </div>
+    <div>
+      <Label>Novo prazo</Label>
+      <Input
+        type="date"
+        value={form.renovacao_prazo || ""}
+        onChange={e => setForm(f => ({ ...f, renovacao_prazo: e.target.value }))}
+      />
+    </div>
+    <div className="md:col-span-5">
+      <Label>Observação</Label>
+      <Input
+        value={form.observacao || ""}
+        onChange={e => setForm(f => ({ ...f, observacao: e.target.value }))}
+        placeholder="Ex.: Guia enviada em 10/10, aguardando análise."
+      />
+    </div>
+  </>
+)}
+
                 </div>
               </form>
             </div>
@@ -693,6 +734,9 @@ export default function App() {
                     <th className="py-2 pr-3">Responsável</th>
                     <th className="py-2 pr-3">Situação</th>
                     <th className="py-2 pr-3">Ações</th>
+                    <th className="py-2 pr-3">Protocolo</th>
+                    <th className="py-2 pr-3">Novo prazo</th>
+                    <th className="py-2 pr-3">Obs.</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -709,6 +753,9 @@ export default function App() {
                       <td className="py-2 pr-3">{isNaN(it.dias)?'-':it.dias}</td>
                       <td className="py-2 pr-3">{it.responsavel}</td>
                       <td className="py-2 pr-3"><Badge className={situacaoColor(it.situacao)}>{it.situacao}</Badge></td>
+                      <td className="py-2 pr-3">{it.protocolo || "-"}</td>
+                      <td className="py-2 pr-3">{it.renovacao_prazo ? formatBR(it.renovacao_prazo) : "-"}</td>
+                      <td className="py-2 pr-3 truncate max-w-[240px]">{it.observacao || "-"}</td>
                       <td className="py-2 pr-3">
                         <div className="flex items-center gap-2">
                           <Button onClick={()=>handleEdit(it)} title="Editar"><Edit3 size={16}/>Editar</Button>
@@ -753,6 +800,9 @@ export default function App() {
                 <th className="py-2 px-2">Vencimento</th>
                 <th className="py-2 px-2">Responsável</th>
                 <th className="py-2 px-2">Situação</th>
+                <th className="py-2 pr-3">Protocolo</th>
+                <th className="py-2 pr-3">Novo prazo</th>
+                <th className="py-2 pr-3">Obs.</th>
               </tr>
             </thead>
             <tbody>
@@ -771,6 +821,9 @@ export default function App() {
                     <td className="px-2 py-1">{row.vencimento}</td>
                     <td className="px-2 py-1">{row.responsavel}</td>
                     <td className="px-2 py-1">{row.situacao}</td>
+                    <td className="py-2 pr-3">{it.protocolo || "-"}</td>
+                    <td className="py-2 pr-3">{it.renovacao_prazo ? formatBR(it.renovacao_prazo) : "-"}</td>
+                    <td className="py-2 pr-3 truncate max-w-[240px]">{it.observacao || "-"}</td>
                   </tr>
                 );
               })}

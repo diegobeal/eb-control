@@ -2,33 +2,60 @@
 import { supabase } from "./supabaseClient";
 
 // LISTAR
+// listLicencas: inclua os campos na projeção ou apenas use .select('*')
 export async function listLicencas() {
   const { data, error } = await supabase
-    .from("licencas")
-    .select("*")
-    .order("vencimento", { ascending: true });
+    .from('licencas')
+    .select('*') // pega também protocolo, observacao, renovacao_prazo
+    .order('vencimento', { ascending: true });
   if (error) throw error;
   return data || [];
 }
 
-// INSERIR
 export async function insertLicenca(payload) {
   const { data, error } = await supabase
-    .from("licencas")
-    .insert(payload)
-    .select()
+    .from('licencas')
+    .insert([{
+      tipo: payload.tipo,
+      orgao: payload.orgao,
+      numero: payload.numero || '',
+      empresa: payload.empresa,
+      municipio: payload.municipio,
+      uf: payload.uf,
+      emissao: payload.emissao,
+      vencimento: payload.vencimento,
+      responsavel: payload.responsavel,
+      situacao: payload.situacao,
+      protocolo: payload.protocolo || null,
+      observacao: payload.observacao || null,
+      renovacao_prazo: payload.renovacao_prazo || null,
+    }])
+    .select('*')
     .single();
   if (error) throw error;
   return data;
 }
 
-// ATUALIZAR
 export async function updateLicenca(id, payload) {
   const { data, error } = await supabase
-    .from("licencas")
-    .update(payload)
-    .eq("id", id)
-    .select()
+    .from('licencas')
+    .update({
+      tipo: payload.tipo,
+      orgao: payload.orgao,
+      numero: payload.numero || '',
+      empresa: payload.empresa,
+      municipio: payload.municipio,
+      uf: payload.uf,
+      emissao: payload.emissao,
+      vencimento: payload.vencimento,
+      responsavel: payload.responsavel,
+      situacao: payload.situacao,
+      protocolo: payload.protocolo || null,
+      observacao: payload.observacao || null,
+      renovacao_prazo: payload.renovacao_prazo || null,
+    })
+    .eq('id', id)
+    .select('*')
     .single();
   if (error) throw error;
   return data;
